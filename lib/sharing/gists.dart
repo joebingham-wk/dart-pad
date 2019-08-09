@@ -41,9 +41,20 @@ String extractHtmlBody(String html) {
 Gist createSampleGist() {
   Gist gist = Gist();
   // "wispy-dust-1337", "patient-king-8872", "purple-breeze-9817"
+
+  String defaultHtmlContent = '''
+    <html>
+      <head>
+          <link data-sal-loader="https://cdn.wdesk.com/design_system/0.27.4/packages/web_skin/dist/css/web-skin.min.css" data-static-asset-loaded="true" rel="stylesheet" href="https://cdn.wdesk.com/design_system/0.27.4/packages/web_skin/dist/css/web-skin.min.css">  
+      </head>
+      <body>
+      </body>
+    </html>
+  ''';
+
   gist.description = Haikunator.haikunate();
   gist.files.add(GistFile(name: 'main.dart', content: sample.dartCode));
-  gist.files.add(GistFile(name: 'index.html', content: '\n'));
+  gist.files.add(GistFile(name: 'index.html', content: defaultHtmlContent));
   gist.files.add(GistFile(name: 'styles.css', content: '\n'));
   gist.files.add(GistFile(
       name: 'readme.md',
