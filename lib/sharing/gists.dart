@@ -48,6 +48,8 @@ Gist createSampleGist() {
           <link data-sal-loader="https://cdn.wdesk.com/design_system/0.27.4/packages/web_skin/dist/css/web-skin.min.css" data-static-asset-loaded="true" rel="stylesheet" href="https://cdn.wdesk.com/design_system/0.27.4/packages/web_skin/dist/css/web-skin.min.css">  
       </head>
       <body>
+        <div class="main">
+        </div>
       </body>
     </html>
   ''';
