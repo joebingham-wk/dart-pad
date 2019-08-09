@@ -112,7 +112,7 @@ class PlaygroundMobile {
     _setGistId(null);
 
     context.dartSource = sample.dartCode;
-    context.htmlSource = '\n';
+    context.htmlSource = 'Hi';
     context.cssSource = '\n';
     _storePreviousResult();
   }
