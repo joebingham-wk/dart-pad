@@ -58,6 +58,11 @@
         });
     </script>
     <style id="styleId"></style>
+    <script>
+        if (window.parent !== window) {
+            window.__REACT_DEVTOOLS_GLOBAL_HOOK__ = window.parent.__REACT_DEVTOOLS_GLOBAL_HOOK__;
+        }
+    </script>
     <script src="https://cdn.jsdelivr.net/gh/cleandart/react-dart/lib/react.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/cleandart/react-dart/lib/react_dom.js"></script>
     <script src="require.js"></script>

@@ -22,7 +22,10 @@ Future<void> main() async {
 /// to shelf responses. Also handles preflight (OPTIONS) requests.
 Middleware createCorsHeadersMiddleware({Map<String, String> corsHeaders}) {
   // By default allow access from everywhere.
-  corsHeaders ??= <String, String>{'Access-Control-Allow-Origin': '*'};
+  corsHeaders ??= <String, String>{
+    'Access-Control-Allow-Origin': '*',
+    'X-Frame-Options': 'allow-from *'
+  };
 
   // Handle preflight (OPTIONS) requests by just adding headers and an empty
   // response.
