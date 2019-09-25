@@ -473,12 +473,22 @@ class Playground implements GistContainer, GistController {
         ga.sendEvent('view', 'result');
         querySelector('#frame').style.visibility = 'visible';
         querySelector('#output').style.visibility = 'hidden';
+        querySelector('#customize').style.visibility = 'hidden';
       }))
       ..registerTab(TabElement(querySelector('#consoletab'), name: 'console',
           onSelect: () {
         ga.sendEvent('view', 'console');
         querySelector('#output').style.visibility = 'visible';
         querySelector('#frame').style.visibility = 'hidden';
+        querySelector('#customize').style.visibility = 'hidden';
+      }))
+      ..registerTab(TabElement(querySelector('#customizetab'),
+        name: 'customize',
+        onSelect: () {
+          ga.sendEvent('view', 'customize');
+          querySelector('#customize').style.visibility = 'visible';
+          querySelector('#output').style.visibility = 'hidden';
+          querySelector('#frame').style.visibility = 'hidden';
       }));
 
     _context = PlaygroundContext(editor);

@@ -35,8 +35,12 @@ body {
   display:none;
 }
 
-#css-code{
+#css-code {
   display:none;
+}
+
+#customize {
+  visibility:hidden;
 }
 
 header {
