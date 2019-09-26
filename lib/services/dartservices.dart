@@ -7,6 +7,7 @@ library dart_services.dartservices.v1;
 import 'dart:core' as core;
 import 'dart:async' as async;
 import 'dart:convert' as convert;
+import 'dart:core';
 
 import 'package:_discoveryapis_commons/_discoveryapis_commons.dart' as commons;
 import 'package:http/http.dart' as http;
@@ -119,9 +120,13 @@ class DartservicesApi {
     var _uploadOptions = null;
     var _downloadOptions = commons.DownloadOptions.Metadata;
     var _body = null;
+    var requestMap = {
+      'source': request.source,
+      'sessionId': request.sessionId,
+    };
 
     if (request != null) {
-      _body = convert.json.encode((request).toJson());
+      _body = convert.json.encode(requestMap);
     }
 
     _url = 'compile';
@@ -156,9 +161,14 @@ class DartservicesApi {
     var _uploadOptions = null;
     var _downloadOptions = commons.DownloadOptions.Metadata;
     var _body = null;
+    var requestMap = {
+      'source': request.source,
+      'sessionId': request.sessionId,
+    };
+
 
     if (request != null) {
-      _body = convert.json.encode((request).toJson());
+      _body = convert.json.encode(requestMap);
     }
 
     _url = 'compileDDC';
@@ -533,6 +543,9 @@ class CompileRequest {
 
   /// The Dart source.
   core.String source;
+
+  /// The session ID used for requesting packages under this user's state.
+  core.String sessionId;
 
   CompileRequest();
 

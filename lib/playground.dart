@@ -9,6 +9,7 @@ import 'dart:html' hide Document;
 
 import 'package:logging/logging.dart';
 import 'package:route_hierarchical/client.dart';
+import 'package:uuid/uuid.dart';
 
 import 'completion.dart';
 import 'context.dart';
@@ -40,7 +41,7 @@ Playground _playground;
 final Logger _logger = Logger('dartpad');
 
 /// Controls whether we request compilation using dart2js or DDC.
-const bool _useDDC = false;
+const bool _useDDC = true;
 
 void init() {
   _playground = Playground();
@@ -73,6 +74,7 @@ class Playground implements GistContainer, GistController {
   TabController outputTabController;
   SharingDialog sharingDialog;
   KeysDialog settings;
+  Map appCookie;
 
   // We store the last returned shared gist; it's used to update the url.
   Gist _overrideNextRouteGist;
@@ -588,7 +590,25 @@ class Playground implements GistContainer, GistController {
       querySelector('#dartpad_version').text = versionText;
     }).catchError((e) => null);
 
+    final w_ide_cookie = RegExp(r'(?:(?:w_ide)\s*\=\s*([^;]*).*$)');
+    final currentCookie = w_ide_cookie.firstMatch(document.cookie);
+    
+    appCookie = currentCookie.group(1) != null
+        ? {'name': 'w_ide', 'value': currentCookie.group(1)}
+        : _createCookie();
+
     _finishedInit();
+  }
+
+  Map _createCookie() {
+    final id = Uuid().v4();
+
+    document.cookie = "w_ide=$id";
+
+    return {
+      'name': 'w_ide',
+      'value': id,
+    };
   }
 
   void _finishedInit() {
@@ -627,7 +647,10 @@ class Playground implements GistContainer, GistController {
     Stopwatch compilationTimer = Stopwatch()..start();
 
     final CompileRequest compileRequest = CompileRequest()
-      ..source = context.dartSource;
+      ..source = context.dartSource
+      ..sessionId = appCookie['value'];
+
+    print('on the client side, the value is ${compileRequest.sessionId}');
 
     try {
       if (_useDDC) {
@@ -651,6 +674,7 @@ class Playground implements GistContainer, GistController {
           modulesBaseUrl: response.modulesBaseUrl,
         );
       } else {
+        print('about to send compile request..');
         final CompileResponse response = await dartServices
             .compile(compileRequest)
             .timeout(longServiceCallTimeout);
