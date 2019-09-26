@@ -7,7 +7,6 @@ library dart_services.dartservices.v1;
 import 'dart:core' as core;
 import 'dart:async' as async;
 import 'dart:convert' as convert;
-import 'dart:core';
 
 import 'package:_discoveryapis_commons/_discoveryapis_commons.dart' as commons;
 import 'package:http/http.dart' as http;
@@ -47,13 +46,9 @@ class DartservicesApi {
     var _uploadOptions = null;
     var _downloadOptions = commons.DownloadOptions.Metadata;
     var _body = null;
-    var requestMap = {
-      'source': request.source,
-      'sessionId': request.sessionId,
-    };
 
     if (request != null) {
-      _body = convert.json.encode(requestMap);
+      _body = convert.json.encode((request).toJson());
     }
 
     _url = 'analyze';
@@ -124,13 +119,9 @@ class DartservicesApi {
     var _uploadOptions = null;
     var _downloadOptions = commons.DownloadOptions.Metadata;
     var _body = null;
-    var requestMap = {
-      'source': request.source,
-      'sessionId': request.sessionId,
-    };
 
     if (request != null) {
-      _body = convert.json.encode(requestMap);
+      _body = convert.json.encode((request).toJson());
     }
 
     _url = 'compile';
@@ -165,14 +156,9 @@ class DartservicesApi {
     var _uploadOptions = null;
     var _downloadOptions = commons.DownloadOptions.Metadata;
     var _body = null;
-    var requestMap = {
-      'source': request.source,
-      'sessionId': request.sessionId,
-    };
-
 
     if (request != null) {
-      _body = convert.json.encode(requestMap);
+      _body = convert.json.encode((request).toJson());
     }
 
     _url = 'compileDDC';
@@ -514,40 +500,30 @@ class CandidateFix {
 }
 
 class CompileDDCResponse {
-  core.String modulesBaseUrl;
-  core.String result;
+  core.String entrypointUrl;
 
   CompileDDCResponse();
 
   CompileDDCResponse.fromJson(core.Map _json) {
-    if (_json.containsKey("modulesBaseUrl")) {
-      modulesBaseUrl = _json["modulesBaseUrl"];
-    }
-    if (_json.containsKey("result")) {
-      result = _json["result"];
+    if (_json.containsKey("entrypointUrl")) {
+      entrypointUrl = _json["entrypointUrl"];
     }
   }
 
   core.Map<core.String, core.Object> toJson() {
     final core.Map<core.String, core.Object> _json =
         new core.Map<core.String, core.Object>();
-    if (modulesBaseUrl != null) {
-      _json["modulesBaseUrl"] = modulesBaseUrl;
-    }
-    if (result != null) {
-      _json["result"] = result;
+    if (entrypointUrl != null) {
+      _json["entrypointUrl"] = entrypointUrl;
     }
     return _json;
   }
 }
 
-class DartpadRequest {
-  core.String sessionId;
-}
-
-class CompileRequest extends DartpadRequest {
+class CompileRequest {
   /// Return the Dart to JS source map; optional (defaults to false).
   core.bool returnSourceMap;
+  core.String sessionId;
 
   /// The Dart source.
   core.String source;
@@ -557,6 +533,9 @@ class CompileRequest extends DartpadRequest {
   CompileRequest.fromJson(core.Map _json) {
     if (_json.containsKey("returnSourceMap")) {
       returnSourceMap = _json["returnSourceMap"];
+    }
+    if (_json.containsKey("sessionId")) {
+      sessionId = _json["sessionId"];
     }
     if (_json.containsKey("source")) {
       source = _json["source"];
@@ -568,6 +547,9 @@ class CompileRequest extends DartpadRequest {
         new core.Map<core.String, core.Object>();
     if (returnSourceMap != null) {
       _json["returnSourceMap"] = returnSourceMap;
+    }
+    if (sessionId != null) {
+      _json["sessionId"] = sessionId;
     }
     if (source != null) {
       _json["source"] = source;
@@ -800,7 +782,7 @@ class SourceEdit {
   }
 }
 
-class SourceRequest extends DartpadRequest {
+class SourceRequest {
   /// An optional offset into the source code.
   core.int offset;
 
