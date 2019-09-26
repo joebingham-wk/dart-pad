@@ -591,10 +591,10 @@ class Playground implements GistContainer, GistController {
     }).catchError((e) => null);
 
     final w_ide_cookie = RegExp(r'(?:(?:w_ide)\s*\=\s*([^;]*).*$)');
-    final currentCookie = w_ide_cookie.firstMatch(document.cookie);
+    final currentCookie = w_ide_cookie.firstMatch(document.cookie)?.group(1);
     
-    appCookie = currentCookie.group(1) != null
-        ? {'name': 'w_ide', 'value': currentCookie.group(1)}
+    appCookie = currentCookie != null
+        ? {'name': 'w_ide', 'value': currentCookie}
         : _createCookie();
 
     _finishedInit();
