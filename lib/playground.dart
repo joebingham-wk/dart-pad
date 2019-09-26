@@ -41,7 +41,7 @@ Playground _playground;
 final Logger _logger = Logger('dartpad');
 
 /// Controls whether we request compilation using dart2js or DDC.
-const bool _useDDC = true;
+const bool _useDDC = false;
 
 void init() {
   _playground = Playground();
@@ -763,7 +763,8 @@ class Playground implements GistContainer, GistController {
   /// analyzed cleanly (had no errors or warnings).
   Future<bool> _performAnalysis() {
     SourceRequest input = SourceRequest()
-      ..source = _context.dartSource;
+      ..source = _context.dartSource
+      ..sessionId = appCookie['value'];
 
     Lines lines = Lines(input.source);
 
@@ -816,7 +817,9 @@ class Playground implements GistContainer, GistController {
 
   Future _format() {
     String originalSource = _context.dartSource;
-    SourceRequest input = SourceRequest()..source = originalSource;
+    SourceRequest input = SourceRequest()
+      ..source = originalSource
+      ..sessionId = appCookie['value'];
     formatButton.disabled = true;
 
     Future<FormatResponse> request =

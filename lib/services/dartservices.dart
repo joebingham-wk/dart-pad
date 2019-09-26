@@ -47,9 +47,13 @@ class DartservicesApi {
     var _uploadOptions = null;
     var _downloadOptions = commons.DownloadOptions.Metadata;
     var _body = null;
+    var requestMap = {
+      'source': request.source,
+      'sessionId': request.sessionId,
+    };
 
     if (request != null) {
-      _body = convert.json.encode((request).toJson());
+      _body = convert.json.encode(requestMap);
     }
 
     _url = 'analyze';
@@ -537,15 +541,16 @@ class CompileDDCResponse {
   }
 }
 
-class CompileRequest {
+class DartpadRequest {
+  core.String sessionId;
+}
+
+class CompileRequest extends DartpadRequest {
   /// Return the Dart to JS source map; optional (defaults to false).
   core.bool returnSourceMap;
 
   /// The Dart source.
   core.String source;
-
-  /// The session ID used for requesting packages under this user's state.
-  core.String sessionId;
 
   CompileRequest();
 
@@ -795,7 +800,7 @@ class SourceEdit {
   }
 }
 
-class SourceRequest {
+class SourceRequest extends DartpadRequest {
   /// An optional offset into the source code.
   core.int offset;
 
