@@ -20,9 +20,9 @@ class TestResult {
 abstract class ExecutionService {
   Future execute(
     String html,
-    String css,
-    String javaScript, {
-    String modulesBaseUrl,
+    String css, {
+    String javaScript,
+    String javaScriptUrl,
   });
 
   void replaceHtml(String html);

@@ -5,8 +5,12 @@
 library execution_iframe;
 
 import 'dart:async';
+import 'dart:collection';
+import 'dart:convert';
 import 'dart:html';
 import 'dart:js';
+
+import 'package:path/path.dart' as p;
 
 import 'execution.dart';
 
@@ -37,15 +41,24 @@ class ExecutionServiceIFrame implements ExecutionService {
   @override
   Future execute(
     String html,
-    String css,
-    String javaScript, {
-    String modulesBaseUrl,
+    String css, {
+    String javaScript,
+    String javaScriptUrl,
   }) {
     return _reset().whenComplete(() {
+      final ddcUrl = JsDdcUrl(javaScriptUrl);
+      print(ddcUrl);
       return _send('execute', {
         'html': html,
         'css': css,
-        'js': _decorateJavaScript(javaScript, modulesBaseUrl: modulesBaseUrl),
+        // fixme try removing domain if this doesn't work
+        'js': _decorateJavaScript(
+          javaScript: javaScript,
+          baseUrl: ddcUrl.assetsBaseUrl,
+        ),
+        'javaScriptUrl': ddcUrl.mainJsUrl,
+//        // Have baseUrls passed into `execute` so that this isn't gross
+        'baseUrl': ddcUrl.assetsBaseUrl,
       });
     });
   }
@@ -82,7 +95,7 @@ void _result(bool success, [List<String> messages]) {
 var resultFunction = _result;
 ''';
 
-  String _decorateJavaScript(String javaScript, {String modulesBaseUrl}) {
+  String _decorateJavaScript({String javaScript, String baseUrl}) {
     final String postMessagePrint = '''
 const testKey = '$testKey';
 
@@ -139,33 +152,22 @@ window.onerror = function(message, url, lineNumber, colno, error) {
 ''';
 
     String requireConfig = '';
-    if (modulesBaseUrl != null) {
+    if (baseUrl != null) {
       requireConfig = '''
-require.config({
-  "baseUrl": "$modulesBaseUrl",
-  "waitSeconds": 60
-});
+require = {
+  // todo is this still needed?
+  // main.dart.js main.dart.bootstrap may overwrite this value
+  "baseUrl": "$baseUrl",
+  "waitSeconds": 60,
+  // "paths": {
+  //   "main.dart.bootstrap": "web/main.dart.bootstrap"
+  // }
+};
 ''';
     }
 
-    final bool usesRequireJs = modulesBaseUrl != null;
-
-    String postfix = '';
-    if (usesRequireJs) {
-      postfix = '''
-require(["dartpad_main", "dart_sdk"], function(dartpad_main, dart_sdk) {
-    // SDK initialization.
-    dart_sdk.dart.setStartAsyncSynchronously(true);
-    dart_sdk._isolate_helper.startRootIsolate(() => {}, []);
-
-    // Loads the `main` library and runs the main method from it.
-    dartpad_main.main.main();
-});
-''';
-    }
-
-    return '$postMessagePrint\n$exceptionHandler\n$requireConfig\n'
-        '$javaScript\n$postfix'
+    return '$postMessagePrint\n$exceptionHandler\n'
+        '${javaScript ?? ''}\n$requireConfig'
         .trim();
   }
 
@@ -224,5 +226,39 @@ require(["dartpad_main", "dart_sdk"], function(dartpad_main, dart_sdk) {
         _stdoutController.add(data['message']);
       }
     });
+  }
+}
+
+class JsDdcUrl {
+  final String mainJsUrl;
+  final String assetsBaseUrl;
+  final String host;
+
+  JsDdcUrl._(this.mainJsUrl, this.assetsBaseUrl, this.host);
+
+  String get mainJsRelativeToAssetsBaseUrl {
+    return p.relative(Uri.parse(mainJsUrl).path, from: Uri.parse(assetsBaseUrl).path);
+  }
+
+  String get assetsBaseUrlPathOnly => Uri.parse(assetsBaseUrl).path;
+
+  factory JsDdcUrl(String mainJsUrl) {
+    final mainJsUri = Uri.parse(mainJsUrl);
+    final host = mainJsUri.replace(path: '').toString();
+
+    var assetsBaseUrl = mainJsUri.replace(
+        pathSegments: mainJsUri.pathSegments.sublist(0, mainJsUri.pathSegments.length - 1), // or try -2
+    );
+    return JsDdcUrl._(mainJsUrl, assetsBaseUrl.toString() + '/', host);
+  }
+
+  @override
+  String toString() {
+    return 'JsDdcUrl:${const JsonEncoder.withIndent('  ').convert({
+      'mainJsUrl': mainJsUrl,
+      'assetsBaseUrl': assetsBaseUrl,
+      'host': host,
+      'mainJsRelativeToAssetsBaseUrl': mainJsRelativeToAssetsBaseUrl,
+    })}';
   }
 }

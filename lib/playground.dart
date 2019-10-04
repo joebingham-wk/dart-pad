@@ -41,7 +41,7 @@ Playground _playground;
 final Logger _logger = Logger('dartpad');
 
 /// Controls whether we request compilation using dart2js or DDC.
-const bool _useDDC = false;
+const bool _useDDC = true;
 
 void init() {
   _playground = Playground();
@@ -670,8 +670,7 @@ class Playground implements GistContainer, GistController {
         return executionService.execute(
           _context.htmlSource,
           _context.cssSource,
-          response.result,
-          modulesBaseUrl: response.modulesBaseUrl,
+          javaScriptUrl: Uri.parse(serverURL).resolve(response.entrypointUrl).toString(),
         );
       } else {
         print('about to send compile request..');
@@ -691,7 +690,7 @@ class Playground implements GistContainer, GistController {
         return executionService.execute(
           _context.htmlSource,
           _context.cssSource,
-          response.result,
+          javaScript: response.result,
         );
       }
     } catch (e) {
