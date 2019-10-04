@@ -442,8 +442,8 @@ class NewEmbed {
         executionSvc.execute(
           '',
           '',
-          response.result,
-          modulesBaseUrl: response.modulesBaseUrl,
+          javaScript: response.result,
+          javaScriptUrl: response.modulesBaseUrl,
         );
       }).catchError((e, st) {
         consoleExpandController
@@ -459,7 +459,7 @@ class NewEmbed {
           .timeout(longServiceCallTimeout)
           .then((CompileResponse response) {
         return executionSvc.execute(
-            context.htmlSource, context.cssSource, response.result);
+            context.htmlSource, context.cssSource, javaScript: response.result);
       }).catchError((e, st) {
         consoleExpandController
             .appendError('Error compiling to JavaScript:\n$e');
@@ -473,7 +473,7 @@ class NewEmbed {
           .compile(input)
           .timeout(longServiceCallTimeout)
           .then((CompileResponse response) {
-        executionSvc.execute('', '', response.result);
+        executionSvc.execute('', '', javaScript: response.result);
       }).catchError((e, st) {
         consoleExpandController
             .appendError('Error compiling to JavaScript:\n$e');
