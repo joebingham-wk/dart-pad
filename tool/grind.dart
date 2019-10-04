@@ -103,7 +103,7 @@ serveCustomBackend() async {
   // 'https://dart-services.appspot.com' with serverUrl.
   final List<FileSystemEntity> files = [];
   files.addAll(_buildDir.join('scripts').asDirectory.listSync());
-  files.addAll(_buildDir.join('experimental').asDirectory.listSync());
+  //files.addAll(_buildDir.join('experimental').asDirectory.listSync());
   for (FileSystemEntity entity in files) {
     if (entity is! File) continue;
     if (!entity.path.endsWith('.dart.js')) continue;
@@ -138,24 +138,20 @@ build() {
     log('${testFile.path} compiled to ${_printSize(testFile)}');
   }
 
-  FilePath embedFile = _buildDir.join('scripts/embed.dart.js');
-  log('$embedFile compiled to ${_printSize(embedFile)}');
+  // FilePath embedFile = _buildDir.join('scripts/embed.dart.js');
+  // log('$embedFile compiled to ${_printSize(embedFile)}');
 
-  FilePath newEmbedDartFile =
-      _buildDir.join('experimental/new_embed_dart.dart.js');
-  log('$newEmbedDartFile compiled to ${_printSize(newEmbedDartFile)}');
+  // FilePath newEmbedDartFile = _buildDir.join('experimental/new_embed_dart.dart.js');
+  // log('$newEmbedDartFile compiled to ${_printSize(newEmbedDartFile)}');
 
-  FilePath newEmbedFlutterFile =
-      _buildDir.join('experimental/new_embed_flutter.dart.js');
-  log('$newEmbedFlutterFile compiled to ${_printSize(newEmbedFlutterFile)}');
+  // FilePath newEmbedFlutterFile = _buildDir.join('experimental/new_embed_flutter.dart.js');
+  // log('$newEmbedFlutterFile compiled to ${_printSize(newEmbedFlutterFile)}');
 
-  FilePath newEmbedHtmlFile =
-      _buildDir.join('experimental/new_embed_html.dart.js');
-  log('$newEmbedHtmlFile compiled to ${_printSize(newEmbedHtmlFile)}');
+  // FilePath newEmbedHtmlFile = _buildDir.join('experimental/new_embed_html.dart.js');
+  // log('$newEmbedHtmlFile compiled to ${_printSize(newEmbedHtmlFile)}');
 
-  FilePath newEmbedInlineFile =
-      _buildDir.join('experimental/new_embed_inline.dart.js');
-  log('$newEmbedInlineFile compiled to ${_printSize(newEmbedInlineFile)}');
+  // FilePath newEmbedInlineFile = _buildDir.join('experimental/new_embed_inline.dart.js');
+  // log('$newEmbedInlineFile compiled to ${_printSize(newEmbedInlineFile)}');
 
   // Remove .dart files.
   int count = 0;
@@ -174,13 +170,13 @@ build() {
   // Imports vulcanized, not inlined for IE support
   vulcanizeNoExclusion('scripts/imports.html');
   vulcanize('index.html');
-  vulcanize('embed-dart.html');
-  vulcanize('embed-html.html');
-  vulcanize('experimental/embed-new-dart.html');
-  vulcanize('experimental/embed-new-flutter.html');
-  vulcanize('experimental/embed-new-html.html');
-  vulcanize('experimental/embed-new-inline.html');
-  vulcanize('embed-inline.html');
+  // vulcanize('embed-dart.html');
+  // vulcanize('embed-html.html');
+  // vulcanize('experimental/embed-new-dart.html');
+  // vulcanize('experimental/embed-new-flutter.html');
+  // vulcanize('experimental/embed-new-html.html');
+  // vulcanize('experimental/embed-new-inline.html');
+  // vulcanize('embed-inline.html');
 }
 
 void copyPackageResources(String packageName, Directory destDir) {
