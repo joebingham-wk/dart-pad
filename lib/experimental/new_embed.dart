@@ -65,6 +65,8 @@ class NewEmbedOptions {
 
 /// An embeddable DartPad UI that provides the ability to test the user's code
 /// snippet against a desired result.
+///
+/// TODO: Fix embed to match new API
 class NewEmbed {
   final NewEmbedOptions options;
   DisableableButton executeButton;
@@ -185,8 +187,8 @@ class NewEmbed {
 
     unreadConsoleCounter = Counter(querySelector('#unread-console-counter'));
 
-    executeButton =
-        DisableableButton(querySelector('#execute'), _handleExecute);
+//    executeButton =
+//        DisableableButton(querySelector('#execute'), _handleExecute);
 
     reloadGistButton = DisableableButton(querySelector('#reload-gist'), () {
       if (gistId.isNotEmpty) {
@@ -427,7 +429,7 @@ class NewEmbed {
       userCodeEditor.showCompletions(onlyShowFixes: true);
     }, 'Quick fix');
 
-    keys.bind(['ctrl-enter', 'macctrl-enter'], _handleExecute, 'Run');
+//    keys.bind(['ctrl-enter', 'macctrl-enter'], _handleExecute, 'Run');
 
     document.onKeyUp.listen(_handleAutoCompletion);
 
@@ -533,85 +535,85 @@ class NewEmbed {
     editorIsBusy = false;
   }
 
-  void _handleExecute() {
-    if (editorIsBusy) {
-      return;
-    }
-
-    if (context.dartSource.isEmpty) {
-      dialog.showOk(
-          'No code to execute',
-          'Try entering some Dart code into the "Dart" tab, then click this '
-              'button again to run it.');
-      return;
-    }
-
-    ga?.sendEvent('execution', 'initiated');
-
-    editorIsBusy = true;
-    testResultBox.hide();
-    hintBox.hide();
-    consoleExpandController.clear();
-
-    final fullCode = '${context.dartSource}\n${context.testMethod}\n'
-        '${executionSvc.testResultDecoration}';
-
-    var input = CompileRequest()..source = fullCode;
-    if (options.mode == NewEmbedMode.flutter) {
-      dartServices
-          .compileDDC(input)
-          .timeout(longServiceCallTimeout)
-          .then((CompileDDCResponse response) {
-        executionSvc.execute(
-          '',
-          '',
-          response.result,
-          modulesBaseUrl: response.modulesBaseUrl,
-        );
-        ga?.sendEvent('execution', 'ddc-compile-success');
-      }).catchError((e, st) {
-        consoleExpandController
-            .appendError('Error compiling to JavaScript:\n$e');
-        print(st);
-        ga?.sendEvent('execution', 'ddc-compile-failure');
-      }).whenComplete(() {
-        webOutputLabel.setAttr('hidden');
-        editorIsBusy = false;
-      });
-    } else if (options.mode == NewEmbedMode.html) {
-      dartServices
-          .compile(input)
-          .timeout(longServiceCallTimeout)
-          .then((CompileResponse response) {
-        ga?.sendEvent('execution', 'html-compile-success');
-        return executionSvc.execute(
-            context.htmlSource, context.cssSource, response.result);
-      }).catchError((e, st) {
-        consoleExpandController
-            .appendError('Error compiling to JavaScript:\n$e');
-        print(st);
-        ga?.sendEvent('execution', 'html-compile-failure');
-      }).whenComplete(() {
-        webOutputLabel.setAttr('hidden');
-        editorIsBusy = false;
-      });
-    } else {
-      dartServices
-          .compile(input)
-          .timeout(longServiceCallTimeout)
-          .then((CompileResponse response) {
-        executionSvc.execute('', '', response.result);
-        ga?.sendEvent('execution', 'compile-success');
-      }).catchError((e, st) {
-        consoleExpandController
-            .appendError('Error compiling to JavaScript:\n$e');
-        print(st);
-        ga?.sendEvent('execution', 'compile-failure');
-      }).whenComplete(() {
-        editorIsBusy = false;
-      });
-    }
-  }
+//  void _handleExecute() {
+//    if (editorIsBusy) {
+//      return;
+//    }
+//
+//    if (context.dartSource.isEmpty) {
+//      dialog.showOk(
+//          'No code to execute',
+//          'Try entering some Dart code into the "Dart" tab, then click this '
+//              'button again to run it.');
+//      return;
+//    }
+//
+//    ga?.sendEvent('execution', 'initiated');
+//
+//    editorIsBusy = true;
+//    testResultBox.hide();
+//    hintBox.hide();
+//    consoleExpandController.clear();
+//
+//    final fullCode = '${context.dartSource}\n${context.testMethod}\n'
+//        '${executionSvc.testResultDecoration}';
+//
+//    var input = CompileRequest()..source = fullCode;
+//    if (options.mode == NewEmbedMode.flutter) {
+//      dartServices
+//          .compileDDC(input)
+//          .timeout(longServiceCallTimeout)
+//          .then((CompileDDCResponse response) {
+//        executionSvc.execute(
+//          '',
+//          '',
+//          javaScript: response.result,
+//          javaScriptUrl: response.modulesBaseUrl,
+//        );
+//        ga?.sendEvent('execution', 'ddc-compile-success');
+//      }).catchError((e, st) {
+//        consoleExpandController
+//            .appendError('Error compiling to JavaScript:\n$e');
+//        print(st);
+//        ga?.sendEvent('execution', 'ddc-compile-failure');
+//      }).whenComplete(() {
+//        webOutputLabel.setAttr('hidden');
+//        editorIsBusy = false;
+//      });
+//    } else if (options.mode == NewEmbedMode.html) {
+//      dartServices
+//          .compile(input)
+//          .timeout(longServiceCallTimeout)
+//          .then((CompileResponse response) {
+//        ga?.sendEvent('execution', 'html-compile-success');
+//        return executionSvc.execute(
+//            context.htmlSource, context.cssSource, javaScript: response.result);
+//      }).catchError((e, st) {
+//        consoleExpandController
+//            .appendError('Error compiling to JavaScript:\n$e');
+//        print(st);
+//        ga?.sendEvent('execution', 'html-compile-failure');
+//      }).whenComplete(() {
+//        webOutputLabel.setAttr('hidden');
+//        editorIsBusy = false;
+//      });
+//    } else {
+//      dartServices
+//          .compile(input)
+//          .timeout(longServiceCallTimeout)
+//          .then((CompileResponse response) {
+//        executionSvc.execute('', '', javaScript: response.result);
+//        ga?.sendEvent('execution', 'compile-success');
+//      }).catchError((e, st) {
+//        consoleExpandController
+//            .appendError('Error compiling to JavaScript:\n$e');
+//        print(st);
+//        ga?.sendEvent('execution', 'compile-failure');
+//      }).whenComplete(() {
+//        editorIsBusy = false;
+//      });
+//    }
+//  }
 
   void _displayIssues(List<AnalysisIssue> issues) {
     testResultBox.hide();

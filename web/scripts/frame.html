@@ -20,18 +20,35 @@
         }
     </style>
     <script>
-        replaceJavaScript = function (value) {
-            // Remove the old node.
+        replaceJavaScript = function (value, javaScriptUrl, baseUrl) {
+            // Remove the old nodes.
             var oldNode = document.getElementById('compiledJsScript');
             if (oldNode && oldNode.parentNode) {
                 oldNode.parentNode.removeChild(oldNode);
             }
+            oldNode = document.getElementById('compiledJsScriptUrl');
+            if (oldNode && oldNode.parentNode) {
+                oldNode.parentNode.removeChild(oldNode);
+            }
 
-            // Create a new node.
+            // Create new nodes.
             var scriptNode = document.createElement('script');
             scriptNode.setAttribute('id', 'compiledJsScript');
             scriptNode.text = value;
             document.head.appendChild(scriptNode);
+
+            if (baseUrl) {
+                let baseNode = document.createElement('base');
+                baseNode.setAttribute('href', baseUrl);
+                document.head.appendChild(baseNode);
+            }
+
+            if (javaScriptUrl) {
+                let scriptNode = document.createElement('script');
+                scriptNode.setAttribute('src', javaScriptUrl);
+                scriptNode.setAttribute('id', 'compiledJsScriptUrl');
+                document.head.appendChild(scriptNode);
+            }
         };
 
         messageHandler = function (e) {
@@ -47,7 +64,7 @@
                 // Replace all three.
                 body.innerHTML = obj.html;
                 document.getElementById('styleId').innerHTML = obj.css;
-                replaceJavaScript(obj.js);
+                replaceJavaScript(obj.js, obj.javaScriptUrl, obj.baseUrl);
             }
         };
 
@@ -57,7 +74,8 @@
         });
     </script>
     <style id="styleId"></style>
-    <script src="require.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/cleandart/react-dart/lib/react.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/cleandart/react-dart/lib/react_dom.js"></script>
     <script id="compiledJsScript"></script>
 </head>
 <body>

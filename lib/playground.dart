@@ -9,6 +9,7 @@ import 'dart:html' hide Document;
 
 import 'package:logging/logging.dart';
 import 'package:route_hierarchical/client.dart';
+import 'package:uuid/uuid.dart';
 
 import 'completion.dart';
 import 'context.dart';
@@ -40,7 +41,7 @@ Playground _playground;
 final Logger _logger = Logger('dartpad');
 
 /// Controls whether we request compilation using dart2js or DDC.
-const bool _useDDC = false;
+const bool _useDDC = true;
 
 void init() {
   _playground = Playground();
@@ -73,6 +74,7 @@ class Playground implements GistContainer, GistController {
   TabController outputTabController;
   SharingDialog sharingDialog;
   KeysDialog settings;
+  Map appCookie;
 
   // We store the last returned shared gist; it's used to update the url.
   Gist _overrideNextRouteGist;
@@ -481,12 +483,22 @@ class Playground implements GistContainer, GistController {
         ga.sendEvent('view', 'result');
         querySelector('#frame').style.visibility = 'visible';
         querySelector('#output').style.visibility = 'hidden';
+        querySelector('#customize').style.visibility = 'hidden';
       }))
       ..registerTab(TabElement(querySelector('#consoletab'), name: 'console',
           onSelect: () {
         ga.sendEvent('view', 'console');
         querySelector('#output').style.visibility = 'visible';
         querySelector('#frame').style.visibility = 'hidden';
+        querySelector('#customize').style.visibility = 'hidden';
+      }))
+      ..registerTab(TabElement(querySelector('#customizetab'),
+        name: 'customize',
+        onSelect: () {
+          ga.sendEvent('view', 'customize');
+          querySelector('#customize').style.visibility = 'visible';
+          querySelector('#output').style.visibility = 'hidden';
+          querySelector('#frame').style.visibility = 'hidden';
       }));
 
     _context = PlaygroundContext(editor);
@@ -586,7 +598,25 @@ class Playground implements GistContainer, GistController {
       querySelector('#dartpad_version').text = versionText;
     }).catchError((e) => null);
 
+    final w_ide_cookie = RegExp(r'(?:(?:w_ide)\s*\=\s*([^;]*).*$)');
+    final currentCookie = w_ide_cookie.firstMatch(document.cookie)?.group(1);
+
+    appCookie = currentCookie != null
+        ? {'name': 'w_ide', 'value': currentCookie}
+        : _createCookie();
+
     _finishedInit();
+  }
+
+  Map _createCookie() {
+    final id = Uuid().v4();
+
+    document.cookie = "w_ide=$id";
+
+    return {
+      'name': 'w_ide',
+      'value': id,
+    };
   }
 
   void _finishedInit() {
@@ -625,7 +655,10 @@ class Playground implements GistContainer, GistController {
     Stopwatch compilationTimer = Stopwatch()..start();
 
     final CompileRequest compileRequest = CompileRequest()
-      ..source = context.dartSource;
+      ..source = context.dartSource
+      ..sessionId = appCookie['value'];
+
+    print('on the client side, the value is ${compileRequest.sessionId}');
 
     try {
       if (_useDDC) {
@@ -645,10 +678,10 @@ class Playground implements GistContainer, GistController {
         return executionService.execute(
           _context.htmlSource,
           _context.cssSource,
-          response.result,
-          modulesBaseUrl: response.modulesBaseUrl,
+          javaScriptUrl: Uri.parse(serverURL).resolve(response.entrypointUrl).toString(),
         );
       } else {
+        print('about to send compile request..');
         final CompileResponse response = await dartServices
             .compile(compileRequest)
             .timeout(longServiceCallTimeout);
@@ -665,7 +698,7 @@ class Playground implements GistContainer, GistController {
         return executionService.execute(
           _context.htmlSource,
           _context.cssSource,
-          response.result,
+          javaScript: response.result,
         );
       }
     } catch (e) {
@@ -736,7 +769,9 @@ class Playground implements GistContainer, GistController {
   /// Perform static analysis of the source code. Return whether the code
   /// analyzed cleanly (had no errors or warnings).
   Future<bool> _performAnalysis() {
-    SourceRequest input = SourceRequest()..source = _context.dartSource;
+    SourceRequest input = SourceRequest()
+      ..source = _context.dartSource
+      ..sessionId = appCookie['value'];
 
     Lines lines = Lines(input.source);
 
@@ -789,7 +824,9 @@ class Playground implements GistContainer, GistController {
 
   Future _format() {
     String originalSource = _context.dartSource;
-    SourceRequest input = SourceRequest()..source = originalSource;
+    SourceRequest input = SourceRequest()
+      ..source = originalSource
+      ..sessionId = appCookie['value'];
     formatButton.disabled = true;
 
     Future<FormatResponse> request =

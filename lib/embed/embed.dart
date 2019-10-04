@@ -112,7 +112,7 @@ class PlaygroundMobile {
     _setGistId(null);
 
     context.dartSource = sample.dartCode;
-    context.htmlSource = '\n';
+    context.htmlSource = 'Hi';
     context.cssSource = '\n';
     _storePreviousResult();
   }
@@ -555,7 +555,7 @@ class PlaygroundMobile {
         CompileResponse response = _cachedCompile;
         if (executionService != null) {
           executionService.execute(
-              _context.htmlSource, _context.cssSource, response.result);
+              _context.htmlSource, _context.cssSource, javaScript: response.result);
         }
       } catch (e) {
         _showOutput('Error compiling to JavaScript:\n$e', error: true);
@@ -579,7 +579,7 @@ class PlaygroundMobile {
       _cachedCompile = response;
       if (executionService != null) {
         return executionService.execute(
-            _context.htmlSource, _context.cssSource, response.result);
+            _context.htmlSource, _context.cssSource, javaScript: response.result);
       }
     }).catchError((e) {
       _showOutput('Error compiling to JavaScript:\n$e', error: true);
