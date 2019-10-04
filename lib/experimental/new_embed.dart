@@ -6,7 +6,9 @@ import 'dart:async';
 import 'dart:html' hide Document;
 import 'dart:math' as math;
 
+import 'package:dart_pad/src/ga.dart';
 import 'package:split/split.dart';
+import 'package:mdc_web/mdc_web.dart';
 
 import '../completion.dart';
 import '../core/dependencies.dart';
@@ -29,6 +31,26 @@ NewEmbed get newEmbed => _newEmbed;
 
 NewEmbed _newEmbed;
 
+var codeMirrorOptions = {
+  'continueComments': {'continueLineComment': false},
+  'autofocus': false,
+  'autoCloseBrackets': true,
+  'matchBrackets': true,
+  'tabSize': 2,
+  'lineWrapping': true,
+  'indentUnit': 2,
+  'cursorHeight': 0.85,
+  'viewportMargin': 100,
+  'extraKeys': {
+    'Cmd-/': 'toggleComment',
+    'Ctrl-/': 'toggleComment',
+    'Tab': 'insertSoftTab'
+  },
+  'hintOptions': {'completeSingle': false},
+  'theme': 'zenburn',
+  'scrollbarStyle': 'simple',
+};
+
 void init(NewEmbedOptions options) {
   _newEmbed = NewEmbed(options);
 }
@@ -37,17 +59,21 @@ enum NewEmbedMode { dart, flutter, html, inline }
 
 class NewEmbedOptions {
   final NewEmbedMode mode;
+
   NewEmbedOptions(this.mode);
 }
 
 /// An embeddable DartPad UI that provides the ability to test the user's code
 /// snippet against a desired result.
+///
+/// TODO: Fix embed to match new API
 class NewEmbed {
   final NewEmbedOptions options;
   DisableableButton executeButton;
   DisableableButton reloadGistButton;
   DisableableButton formatButton;
   DisableableButton showHintButton;
+  DisableableButton menuButton;
 
   DElement navBarElement;
   NewEmbedTabController tabController;
@@ -57,6 +83,11 @@ class NewEmbed {
   TabView htmlTabView;
   TabView cssTabView;
   DElement solutionTab;
+  MDCMenu menu;
+
+  DElement morePopover;
+  DElement showTestCodeCheckmark;
+  bool _showTestCode = false;
 
   Counter unreadConsoleCounter;
 
@@ -65,7 +96,7 @@ class NewEmbed {
 
   ExecutionService executionSvc;
 
-  EditorFactory editorFactory = codeMirrorFactory;
+  CodeMirrorFactory editorFactory = codeMirrorFactory;
 
   Editor userCodeEditor;
   Editor testEditor;
@@ -81,6 +112,10 @@ class NewEmbed {
   ConsoleController consoleExpandController;
   DElement webOutputLabel;
 
+  MDCLinearProgress linearProgress;
+  Dialog dialog;
+  Map<String, String> lastInjectedSourceCode = <String, String>{};
+
   final DelayedTimer _debounceTimer = DelayedTimer(
     minDelay: Duration(milliseconds: 1000),
     maxDelay: Duration(milliseconds: 5000),
@@ -94,21 +129,27 @@ class NewEmbed {
   /// too busy to handle code changes, execute/reset requests, etc.
   set editorIsBusy(bool value) {
     _editorIsBusy = value;
-    navBarElement.toggleClass('busy', value);
+    if (value) {
+      linearProgress.root.classes.remove('hide');
+    } else {
+      linearProgress.root.classes.add('hide');
+    }
     userCodeEditor.readOnly = value;
     executeButton.disabled = value;
     formatButton.disabled = value;
-    reloadGistButton.disabled = value || gistId.isEmpty;
+    reloadGistButton.disabled = value;
     showHintButton?.disabled = value;
   }
 
   NewEmbed(this.options) {
     _initHostListener();
-    tabController = NewEmbedTabController();
+    dialog = Dialog();
+    tabController =
+        NewEmbedTabController(MDCTabBar(querySelector('.mdc-tab-bar')), dialog);
 
-    var tabNames = ['editor', 'test', 'solution'];
+    var tabNames = ['editor', 'solution', 'test'];
     if (options.mode == NewEmbedMode.html) {
-      tabNames = ['editor', 'html', 'css'];
+      tabNames = ['editor', 'html', 'css', 'solution', 'test'];
     }
 
     for (var name in tabNames) {
@@ -146,30 +187,45 @@ class NewEmbed {
 
     unreadConsoleCounter = Counter(querySelector('#unread-console-counter'));
 
-    executeButton =
-        DisableableButton(querySelector('#execute'), _handleExecute);
+//    executeButton =
+//        DisableableButton(querySelector('#execute'), _handleExecute);
 
     reloadGistButton = DisableableButton(querySelector('#reload-gist'), () {
       if (gistId.isNotEmpty) {
         _loadAndShowGist(gistId);
+      } else {
+        _resetCode();
       }
     });
 
-    reloadGistButton.disabled = gistId.isEmpty;
-
-    if (options.mode != NewEmbedMode.html) {
-      showHintButton = DisableableButton(querySelector('#show-hint'), () {
-        var showSolutionButton = AnchorElement()
-          ..style.cursor = 'pointer'
-          ..text = 'Show solution';
-        showSolutionButton.onClick.listen((_) {
-          solutionTab.clearAttr('hidden');
-          tabController.selectTab('solution');
-        });
-        var hintElement = DivElement()..text = context.hint;
-        hintBox.showElements([hintElement, showSolutionButton]);
+    showHintButton = DisableableButton(querySelector('#show-hint'), () {
+      var hintElement = DivElement()..text = context.hint;
+      var showSolutionButton = AnchorElement()
+        ..style.cursor = 'pointer'
+        ..text = 'Show solution';
+      showSolutionButton.onClick.listen((_) {
+        tabController.selectTab('solution', force: true);
       });
-    }
+      hintBox.showElements([hintElement, showSolutionButton]);
+    })..hidden = true;
+
+    tabController.setTabVisibility('test', false);
+    showTestCodeCheckmark = DElement(querySelector('#show-test-checkmark'));
+
+    morePopover = DElement(querySelector('#more-popover'));
+    menuButton = DisableableButton(querySelector('#menu-button'), () {
+      menu.open = !menu.open;
+    });
+    menu = MDCMenu(querySelector('#main-menu'))
+      ..setAnchorCorner(AnchorCorner.bottomLeft)
+      ..setAnchorElement(menuButton._element.element);
+    menu.listen('MDCMenu:selected', (e) {
+      if ((e as CustomEvent).detail['index'] == 0) {
+        _showTestCode = !_showTestCode;
+        showTestCodeCheckmark.toggleClass('hide', !_showTestCode);
+        tabController.setTabVisibility('test', _showTestCode);
+      }
+    });
 
     formatButton = DisableableButton(
       querySelector('#format-code'),
@@ -178,17 +234,19 @@ class NewEmbed {
 
     testResultBox = FlashBox(querySelector('#test-result-box'));
     hintBox = FlashBox(querySelector('#hint-box'));
-    var editorTheme = isDarkMode ? 'zenburn' : 'elegant';
+    var editorTheme = isDarkMode ? 'darkpad' : 'dartpad';
 
-    userCodeEditor =
-        editorFactory.createFromElement(querySelector('#user-code-editor'))
-          ..theme = editorTheme
-          ..mode = 'dart'
-          ..showLineNumbers = true;
+    userCodeEditor = editorFactory.createFromElement(
+        querySelector('#user-code-editor'),
+        options: codeMirrorOptions)
+      ..theme = editorTheme
+      ..mode = 'dart'
+      ..showLineNumbers = true;
     userCodeEditor.document.onChange.listen(_performAnalysis);
     userCodeEditor.autoCloseBrackets = false;
 
-    testEditor = editorFactory.createFromElement(querySelector('#test-editor'))
+    testEditor = editorFactory.createFromElement(querySelector('#test-editor'),
+        options: codeMirrorOptions)
       ..theme = editorTheme
       ..mode = 'dart'
       // TODO(devoncarew): We should make this read-only after initial beta
@@ -196,19 +254,22 @@ class NewEmbed {
       //..readOnly = true
       ..showLineNumbers = true;
 
-    solutionEditor =
-        editorFactory.createFromElement(querySelector('#solution-editor'))
-          ..theme = editorTheme
-          ..mode = 'dart'
-          ..showLineNumbers = true;
+    solutionEditor = editorFactory.createFromElement(
+        querySelector('#solution-editor'),
+        options: codeMirrorOptions)
+      ..theme = editorTheme
+      ..mode = 'dart'
+      ..showLineNumbers = true;
 
-    htmlEditor = editorFactory.createFromElement(querySelector('#html-editor'))
+    htmlEditor = editorFactory.createFromElement(querySelector('#html-editor'),
+        options: codeMirrorOptions)
       ..theme = editorTheme
       // TODO(ryjohn): why doesn't editorFactory.modes have html?
       ..mode = 'xml'
       ..showLineNumbers = true;
 
-    cssEditor = editorFactory.createFromElement(querySelector('#css-editor'))
+    cssEditor = editorFactory.createFromElement(querySelector('#css-editor'),
+        options: codeMirrorOptions)
       ..theme = editorTheme
       ..mode = 'css'
       ..showLineNumbers = true;
@@ -252,12 +313,15 @@ class NewEmbed {
 
     executionSvc.testResults.listen((result) {
       if (result.messages.isEmpty) {
-        result.messages.add(result.success ? 'Test passed!' : 'Test failed.');
+        result.messages
+            .add(result.success ? 'All tests passed!' : 'Test failed.');
       }
       testResultBox.showStrings(
         result.messages,
         result.success ? FlashBoxStyle.success : FlashBoxStyle.warn,
       );
+      ga?.sendEvent(
+          'execution', (result.success) ? 'test-success' : 'test-failure');
     });
 
     analysisResultsController = AnalysisResultsController(
@@ -275,7 +339,14 @@ class NewEmbed {
           footer: querySelector('#console-output-footer'),
           expandIcon: querySelector('#console-expand-icon'),
           unreadCounter: unreadConsoleCounter,
-          consoleElement: querySelector('#console-output-container'));
+          consoleElement: querySelector('#console-output-container'),
+          onSizeChanged: () {
+            userCodeEditor.resize();
+            testEditor.resize();
+            solutionEditor.resize();
+            htmlEditor.resize();
+            cssEditor.resize();
+          });
     } else {
       consoleExpandController =
           ConsoleController(querySelector('#console-output-container'));
@@ -286,6 +357,10 @@ class NewEmbed {
       webOutputLabel = DElement(webOutputLabelElement);
     }
 
+    linearProgress = MDCLinearProgress(querySelector('#progress-bar'));
+    linearProgress.determinate = false;
+
+    _initializeMaterialRipples();
     _initModules().then((_) => _initNewEmbed()).then((_) => _emitReady());
   }
 
@@ -302,12 +377,8 @@ class NewEmbed {
       var type = data['type'];
 
       if (type == 'sourceCode') {
-        var sourceCode = data['sourceCode'];
-        userCodeEditor.document.value = sourceCode['main.dart'] ?? '';
-        solutionEditor.document.value = sourceCode['solution.dart'] ?? '';
-        testEditor.document.value = sourceCode['test.dart'] ?? '';
-        htmlEditor.document.value = sourceCode['index.html'] ?? '';
-        cssEditor.document.value = sourceCode['styles.css'] ?? '';
+        lastInjectedSourceCode = Map<String, String>.from(data['sourceCode']);
+        _resetCode();
       }
     });
   }
@@ -340,6 +411,7 @@ class NewEmbed {
 
   void _initNewEmbed() {
     deps[GistLoader] = GistLoader.defaultFilters();
+    deps[Analytics] = Analytics();
 
     context = NewEmbedContext(
         userCodeEditor, testEditor, solutionEditor, htmlEditor, cssEditor);
@@ -357,7 +429,7 @@ class NewEmbed {
       userCodeEditor.showCompletions(onlyShowFixes: true);
     }, 'Quick fix');
 
-    keys.bind(['ctrl-enter', 'macctrl-enter'], _handleExecute, 'Run');
+//    keys.bind(['ctrl-enter', 'macctrl-enter'], _handleExecute, 'Run');
 
     document.onKeyUp.listen(_handleAutoCompletion);
 
@@ -404,85 +476,144 @@ class NewEmbed {
     editorIsBusy = true;
 
     final GistLoader loader = deps[GistLoader];
-    final gist = await loader.loadGist(id);
-    context.dartSource = gist.getFile('main.dart')?.content ?? '';
-    context.htmlSource = gist.getFile('index.html')?.content ?? '';
-    context.cssSource = gist.getFile('styles.css')?.content ?? '';
-    context.testMethod = gist.getFile('test.dart')?.content ?? '';
-    context.solution = gist.getFile('solution.dart')?.content ?? '';
-    context.hint = gist.getFile('hint.txt')?.content ?? '';
-    tabController.setTabVisibility('test', context.testMethod.isNotEmpty);
-    showHintButton?.hidden = context.hint.isEmpty && context.testMethod.isEmpty;
+
+    try {
+      final gist = await loader.loadGist(id);
+      setContextSources(<String, String>{
+        'main.dart': gist.getFile('main.dart')?.content ?? '',
+        'index.html': gist.getFile('index.html')?.content ?? '',
+        'styles.css': gist.getFile('styles.css')?.content ?? '',
+        'solution.dart': gist.getFile('solution.dart')?.content ?? '',
+        'test.dart': gist.getFile('test.dart')?.content ?? '',
+        'hint.txt': gist.getFile('hint.txt')?.content ?? '',
+      });
+
+      if (analyze) {
+        _performAnalysis();
+      }
+    } on GistLoaderException catch (ex) {
+      // No gist was loaded, so clear the editors.
+      setContextSources(<String, String>{});
+
+      if (ex.failureType == GistLoaderFailureType.gistDoesNotExist) {
+        await dialog.showOk('Error loading gist',
+            'No gist was found matching the ID provided ($gistId).');
+      } else if (ex.failureType == GistLoaderFailureType.rateLimitExceeded) {
+        await dialog.showOk(
+            'Error loading gist',
+            'GitHub\'s rate limit for '
+                'API requests has been exceeded. This is typically caused by '
+                'repeatedly loading a single page that has many DartPad embeds or '
+                'when many users are accessing DartPad (and therefore GitHub\'s '
+                'API server) from a single, shared IP address. Quotas are '
+                'typically renewed within an hour, so the best course of action is '
+                'to try back later.');
+      } else {
+        await dialog.showOk(
+            'Error loading gist',
+            'An error occurred while '
+                'loading Gist ID $gistId.');
+      }
+    }
+  }
+
+  void _resetCode() {
+    setContextSources(lastInjectedSourceCode);
+  }
+
+  void setContextSources(Map<String, String> sources) {
+    context.dartSource = sources['main.dart'] ?? '';
+    context.solution = sources['solution.dart'] ?? '';
+    context.testMethod = sources['test.dart'] ?? '';
+    context.htmlSource = sources['index.html'] ?? '';
+    context.cssSource = sources['styles.css'] ?? '';
+    context.hint = sources['hint.txt'] ?? '';
+    tabController.setTabVisibility(
+        'test', context.testMethod.isNotEmpty && _showTestCode);
+    showHintButton?.hidden = context.hint.isEmpty;
+    solutionTab?.toggleAttr('hidden', context.solution.isEmpty);
     editorIsBusy = false;
-
-    if (analyze) {
-      _performAnalysis();
-    }
   }
 
-  void _handleExecute() {
-    if (editorIsBusy) {
-      return;
-    }
-
-    editorIsBusy = true;
-    testResultBox.hide();
-    hintBox.hide();
-    consoleExpandController.clear();
-
-    final fullCode = '${context.dartSource}\n${context.testMethod}\n'
-        '${executionSvc.testResultDecoration}';
-
-    var input = CompileRequest()..source = fullCode;
-    if (options.mode == NewEmbedMode.flutter) {
-      dartServices
-          .compileDDC(input)
-          .timeout(longServiceCallTimeout)
-          .then((CompileDDCResponse response) {
-        executionSvc.execute(
-          '',
-          '',
-          javaScript: response.result,
-          javaScriptUrl: response.modulesBaseUrl,
-        );
-      }).catchError((e, st) {
-        consoleExpandController
-            .appendError('Error compiling to JavaScript:\n$e');
-        print(st);
-      }).whenComplete(() {
-        webOutputLabel.setAttr('hidden');
-        editorIsBusy = false;
-      });
-    } else if (options.mode == NewEmbedMode.html) {
-      dartServices
-          .compile(input)
-          .timeout(longServiceCallTimeout)
-          .then((CompileResponse response) {
-        return executionSvc.execute(
-            context.htmlSource, context.cssSource, javaScript: response.result);
-      }).catchError((e, st) {
-        consoleExpandController
-            .appendError('Error compiling to JavaScript:\n$e');
-        print(st);
-      }).whenComplete(() {
-        webOutputLabel.setAttr('hidden');
-        editorIsBusy = false;
-      });
-    } else {
-      dartServices
-          .compile(input)
-          .timeout(longServiceCallTimeout)
-          .then((CompileResponse response) {
-        executionSvc.execute('', '', javaScript: response.result);
-      }).catchError((e, st) {
-        consoleExpandController
-            .appendError('Error compiling to JavaScript:\n$e');
-        print(st);
-      }).whenComplete(() {
-        editorIsBusy = false;
-      });
-    }
-  }
+//  void _handleExecute() {
+//    if (editorIsBusy) {
+//      return;
+//    }
+//
+//    if (context.dartSource.isEmpty) {
+//      dialog.showOk(
+//          'No code to execute',
+//          'Try entering some Dart code into the "Dart" tab, then click this '
+//              'button again to run it.');
+//      return;
+//    }
+//
+//    ga?.sendEvent('execution', 'initiated');
+//
+//    editorIsBusy = true;
+//    testResultBox.hide();
+//    hintBox.hide();
+//    consoleExpandController.clear();
+//
+//    final fullCode = '${context.dartSource}\n${context.testMethod}\n'
+//        '${executionSvc.testResultDecoration}';
+//
+//    var input = CompileRequest()..source = fullCode;
+//    if (options.mode == NewEmbedMode.flutter) {
+//      dartServices
+//          .compileDDC(input)
+//          .timeout(longServiceCallTimeout)
+//          .then((CompileDDCResponse response) {
+//        executionSvc.execute(
+//          '',
+//          '',
+//          javaScript: response.result,
+//          javaScriptUrl: response.modulesBaseUrl,
+//        );
+//        ga?.sendEvent('execution', 'ddc-compile-success');
+//      }).catchError((e, st) {
+//        consoleExpandController
+//            .appendError('Error compiling to JavaScript:\n$e');
+//        print(st);
+//        ga?.sendEvent('execution', 'ddc-compile-failure');
+//      }).whenComplete(() {
+//        webOutputLabel.setAttr('hidden');
+//        editorIsBusy = false;
+//      });
+//    } else if (options.mode == NewEmbedMode.html) {
+//      dartServices
+//          .compile(input)
+//          .timeout(longServiceCallTimeout)
+//          .then((CompileResponse response) {
+//        ga?.sendEvent('execution', 'html-compile-success');
+//        return executionSvc.execute(
+//            context.htmlSource, context.cssSource, javaScript: response.result);
+//      }).catchError((e, st) {
+//        consoleExpandController
+//            .appendError('Error compiling to JavaScript:\n$e');
+//        print(st);
+//        ga?.sendEvent('execution', 'html-compile-failure');
+//      }).whenComplete(() {
+//        webOutputLabel.setAttr('hidden');
+//        editorIsBusy = false;
+//      });
+//    } else {
+//      dartServices
+//          .compile(input)
+//          .timeout(longServiceCallTimeout)
+//          .then((CompileResponse response) {
+//        executionSvc.execute('', '', javaScript: response.result);
+//        ga?.sendEvent('execution', 'compile-success');
+//      }).catchError((e, st) {
+//        consoleExpandController
+//            .appendError('Error compiling to JavaScript:\n$e');
+//        print(st);
+//        ga?.sendEvent('execution', 'compile-failure');
+//      }).whenComplete(() {
+//        editorIsBusy = false;
+//      });
+//    }
+//  }
 
   void _displayIssues(List<AnalysisIssue> issues) {
     testResultBox.hide();
@@ -609,19 +740,65 @@ class NewEmbed {
 
     if (focus) userCodeEditor.focus();
   }
+
+  void _initializeMaterialRipples() {
+    MDCRipple(executeButton._element.element);
+    MDCRipple(reloadGistButton._element.element);
+    MDCRipple(formatButton._element.element);
+    MDCRipple(showHintButton._element.element);
+  }
 }
 
-// Primer uses a class called "selected" for its navigation styling, rather than
-// an attribute. This class extends the tab controller code to also toggle that
-// class.
+// material-components-web uses specific classes for its navigation styling,
+// rather than an attribute. This class extends the tab controller code to also
+// toggle that class.
 class NewEmbedTabController extends TabController {
+  final MDCTabBar _tabBar;
+  final Dialog _dialog;
+  bool _userHasSeenSolution = false;
+
+  NewEmbedTabController(this._tabBar, this._dialog);
+
+  void registerTab(TabElement tab) {
+    tabs.add(tab);
+
+    try {
+      tab.onClick
+          .listen((_) => selectTab(tab.name, force: _userHasSeenSolution));
+    } catch (e, st) {
+      print('Error from registerTab: $e\n$st');
+    }
+  }
+
   /// This method will throw if the tabName is not the name of a current tab.
   @override
-  void selectTab(String tabName) {
-    TabElement tab = tabs.firstWhere((t) => t.name == tabName);
+  Future selectTab(String tabName, {bool force = false}) async {
+    // Show a confirmation dialog if the solution tab is tapped
+    if (tabName == 'solution' && !force) {
+      var result = await _dialog.showYesNo(
+        'Show solution?',
+        'If you just want a hint, click <span style="font-weight:bold">Cancel'
+            '</span> and then <span style="font-weight:bold">Hint</span>.',
+        yesText: "Show solution",
+        noText: "Cancel",
+      );
+      // Go back to the editor tab
+      if (result == DialogResult.no) {
+        tabName = 'editor';
+      }
+    }
 
-    for (TabElement t in tabs) {
-      t.toggleClass('selected', t == tab);
+    if (tabName == 'solution') {
+      _userHasSeenSolution = true;
+    }
+
+    var tab = tabs.firstWhere((t) => t.name == tabName);
+    var idx = tabs.indexOf(tab);
+
+    _tabBar.activateTab(idx);
+
+    for (var t in tabs) {
+      t.toggleAttr('aria-selected', t == tab);
     }
 
     super.selectTab(tabName);
@@ -792,7 +969,7 @@ class AnalysisResultsController {
   DElement flash;
   DElement message;
   DElement toggle;
-  bool _flashHidden = true;
+  bool _flashHidden;
 
   final StreamController<AnalysisIssue> _onClickController =
       StreamController.broadcast();
@@ -800,8 +977,15 @@ class AnalysisResultsController {
   Stream<AnalysisIssue> get onIssueClick => _onClickController.stream;
 
   AnalysisResultsController(this.flash, this.message, this.toggle) {
-    hideFlash();
+    // Show issues by default, but hide the flash element (otherwise an empty
+    // flash container will be shown). display() will un-hide the element when
+    // there are issues to display.
+    _flashHidden = false;
+    flash.setAttr('hidden');
+    toggle.text = _hideMsg;
+
     message.text = _noIssuesMsg;
+    MDCRipple(toggle.element);
     toggle.onClick.listen((_) {
       if (_flashHidden) {
         showFlash();
@@ -883,6 +1067,7 @@ class AnalysisResultsController {
 /// Manages the visibility and contents of the console
 class ConsoleController {
   final DElement console;
+
   ConsoleController(Element console) : console = DElement(console) {
     console.removeAttribute('hidden');
   }
@@ -916,6 +1101,7 @@ class ConsoleExpandController extends ConsoleController {
   final DElement footer;
   final DElement expandIcon;
   final Counter unreadCounter;
+  final Function onSizeChanged;
   Splitter _splitter;
   bool _expanded;
 
@@ -925,6 +1111,7 @@ class ConsoleExpandController extends ConsoleController {
     Element expandIcon,
     Element consoleElement,
     this.unreadCounter,
+    this.onSizeChanged,
   })  : expandButton = DElement(expandButton),
         footer = DElement(footer),
         expandIcon = DElement(expandIcon),
@@ -962,14 +1149,14 @@ class ConsoleExpandController extends ConsoleController {
       console.element.removeAttribute('hidden');
       expandIcon.element.classes.remove('octicon-triangle-up');
       expandIcon.element.classes.add('octicon-triangle-down');
-      footer.element.classes.remove('border-top');
+      footer.toggleClass('footer-top-border', false);
       unreadCounter.clear();
     } else {
       _splitter.setSizes([100, 0]);
       console.element.setAttribute('hidden', 'true');
       expandIcon.element.classes.remove('octicon-triangle-down');
       expandIcon.element.classes.add('octicon-triangle-up');
-      footer.element.classes.add('border-top');
+      footer.toggleClass('footer-top-border', true);
       try {
         _splitter.destroy();
       } on NoSuchMethodError {
@@ -977,6 +1164,7 @@ class ConsoleExpandController extends ConsoleController {
         // TODO(ryjohn): why does this happen?
       }
     }
+    this.onSizeChanged();
   }
 
   void _initSplitter() {
@@ -989,8 +1177,104 @@ class ConsoleExpandController extends ConsoleController {
       horizontal: false,
       gutterSize: defaultSplitterWidth,
       sizes: [60, 40],
-      minSize: [200, 32],
+      minSize: [32, 32],
     );
+  }
+}
+
+enum DialogResult {
+  yes,
+  no,
+  ok,
+  cancel,
+}
+
+class Dialog {
+  final MDCDialog _mdcDialog;
+  final Element _leftButton;
+  final Element _rightButton;
+  final Element _title;
+  final Element _content;
+
+  Dialog()
+      : _mdcDialog = MDCDialog(querySelector('.mdc-dialog')),
+        _leftButton = querySelector('#dialog-left-button'),
+        _rightButton = querySelector('#dialog-right-button'),
+        _title = querySelector('#my-dialog-title'),
+        _content = querySelector('#my-dialog-content');
+
+  Future<DialogResult> showYesNo(String title, String htmlMessage,
+      {String yesText = "Yes", String noText = "No"}) {
+    return _setUpAndDisplay(
+      title,
+      htmlMessage,
+      noText,
+      yesText,
+      DialogResult.no,
+      DialogResult.yes,
+    );
+  }
+
+  Future<DialogResult> showOk(String title, String htmlMessage) {
+    return _setUpAndDisplay(
+      title,
+      htmlMessage,
+      '',
+      "OK",
+      DialogResult.cancel,
+      DialogResult.ok,
+      false,
+    );
+  }
+
+  Future<DialogResult> showOkCancel(String title, String htmlMessage) {
+    return _setUpAndDisplay(
+      title,
+      htmlMessage,
+      'Cancel',
+      'OK',
+      DialogResult.cancel,
+      DialogResult.ok,
+    );
+  }
+
+  Future<DialogResult> _setUpAndDisplay(
+      String title,
+      String htmlMessage,
+      String leftButtonText,
+      String rightButtonText,
+      DialogResult leftButtonResult,
+      DialogResult rightButtonResult,
+      [bool showLeftButton = true]) {
+    _title.text = title;
+    _content.setInnerHtml(htmlMessage, validator: PermissiveNodeValidator());
+    _rightButton.text = rightButtonText;
+
+    final completer = Completer<DialogResult>();
+    StreamSubscription leftSub;
+
+    if (showLeftButton) {
+      _leftButton.text = leftButtonText;
+      _leftButton.removeAttribute('hidden');
+      leftSub = _leftButton.onClick.listen((_) {
+        completer.complete(leftButtonResult);
+      });
+    } else {
+      _leftButton.setAttribute('hidden', 'true');
+    }
+
+    final rightSub = _rightButton.onClick.listen((_) {
+      completer.complete(rightButtonResult);
+    });
+
+    _mdcDialog.open();
+
+    return completer.future.then((v) {
+      leftSub?.cancel();
+      rightSub.cancel();
+      _mdcDialog.close();
+      return v;
+    });
   }
 }
 

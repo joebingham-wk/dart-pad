@@ -231,7 +231,15 @@ class Playground implements GistContainer, GistController {
     } else if (url.hasQuery && url.queryParameters['source'] != null) {
       UuidContainer gistId = await dartSupportServices.retrieveGist(
           id: url.queryParameters['source']);
-      Gist backing = await gistLoader.loadGist(gistId.uuid);
+      Gist backing;
+
+      try {
+        backing = await gistLoader.loadGist(gistId.uuid);
+      } catch (ex) {
+        print(ex);
+        backing = Gist();
+      }
+
       editableGist.setBackingGist(backing);
       await router.go('gist', {'gist': backing.id});
     } else if (_gistStorage.hasStoredGist && _gistStorage.storedId == null) {
@@ -592,7 +600,7 @@ class Playground implements GistContainer, GistController {
 
     final w_ide_cookie = RegExp(r'(?:(?:w_ide)\s*\=\s*([^;]*).*$)');
     final currentCookie = w_ide_cookie.firstMatch(document.cookie)?.group(1);
-    
+
     appCookie = currentCookie != null
         ? {'name': 'w_ide', 'value': currentCookie}
         : _createCookie();
