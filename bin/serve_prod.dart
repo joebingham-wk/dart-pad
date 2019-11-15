@@ -5,5 +5,5 @@ void main() {
   var handler = createStaticHandler('build',
       defaultDocument: 'index.html');
 
-  io.serve(handler, 'localhost', 8080);
+  io.serve(handler, 'localhost', 80);
 }
