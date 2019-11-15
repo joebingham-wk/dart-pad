@@ -520,7 +520,7 @@ packages:
     source: hosted
     version: "0.0.4+1"
   shelf:
-    dependency: "direct dev"
+    dependency: "direct main"
     description:
       name: shelf
       url: "https://pub.dartlang.org"
