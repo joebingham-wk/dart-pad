@@ -5,7 +5,7 @@ void main() {
   var handler = createStaticHandler('build',
       defaultDocument: 'index.html');
 
-  io.serve(handler, 'localhost', 80).then((server) {
+  io.serve(handler, 'localhost', 8000).then((server) {
     print('Serving at http://${server.address.host}:${server.port}');
   });
 }
