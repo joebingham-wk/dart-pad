@@ -655,10 +655,7 @@ class Playground implements GistContainer, GistController {
     Stopwatch compilationTimer = Stopwatch()..start();
 
     final CompileRequest compileRequest = CompileRequest()
-      ..source = context.dartSource
-      ..sessionId = appCookie['value'];
-
-    print('on the client side, the value is ${compileRequest.sessionId}');
+      ..source = context.dartSource;
 
     try {
       if (_useDDC) {
@@ -770,8 +767,7 @@ class Playground implements GistContainer, GistController {
   /// analyzed cleanly (had no errors or warnings).
   Future<bool> _performAnalysis() {
     SourceRequest input = SourceRequest()
-      ..source = _context.dartSource
-      ..sessionId = appCookie['value'];
+      ..source = _context.dartSource;
 
     Lines lines = Lines(input.source);
 
@@ -825,8 +821,7 @@ class Playground implements GistContainer, GistController {
   Future _format() {
     String originalSource = _context.dartSource;
     SourceRequest input = SourceRequest()
-      ..source = originalSource
-      ..sessionId = appCookie['value'];
+      ..source = originalSource;
     formatButton.disabled = true;
 
     Future<FormatResponse> request =
