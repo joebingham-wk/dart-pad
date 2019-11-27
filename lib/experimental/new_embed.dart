@@ -433,7 +433,7 @@ class NewEmbed {
 
     var horizontal = true;
     var webOutput = querySelector('#web-output');
-    List splitterElements;
+    List<Element> splitterElements;
     if (options.mode == NewEmbedMode.flutter ||
         options.mode == NewEmbedMode.html) {
       var editorAndConsoleContainer =
@@ -557,15 +557,15 @@ class NewEmbed {
         '${executionSvc.testResultDecoration}';
 
     var input = CompileRequest()..source = fullCode;
-    if (options.mode == NewEmbedMode.flutter) {
+    if (options.mode == NewEmbedMode.flutter || options.mode == NewEmbedMode.html) {
       dartServices
           .compileDDC(input)
           .timeout(longServiceCallTimeout)
           .then((CompileDDCResponse response) {
         executionSvc.execute(
-          '',
-          '',
-          javaScriptUrl: response.entrypointUrl,
+          context.htmlSource,
+          context.cssSource,
+          javaScriptUrl: Uri.parse(serverURL).resolve(response.entrypointUrl).toString(),
         );
         ga?.sendEvent('execution', 'ddc-compile-success');
       }).catchError((e, st) {
