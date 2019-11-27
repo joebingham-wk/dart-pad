@@ -8,6 +8,7 @@ import 'dart:async';
 
 import 'package:http/browser_client.dart';
 import 'package:http/http.dart';
+import 'package:path/path.dart' as p;
 
 import '../core/dependencies.dart';
 import '../core/modules.dart';
@@ -62,10 +63,12 @@ class SanitizingBrowserClient extends BrowserClient {
 
 class DartServicesModule extends Module {
   @override
-  Future init() {
-    var client = SanitizingBrowserClient();
+  Future init() async {
+    // `withCredentials` so that the session cookie is passed along.
+    var client = SanitizingBrowserClient()..withCredentials = true;
     deps[DartservicesApi] = DartservicesApi(client, rootUrl: serverURL);
-    return Future.value();
+    // Fetch a session cookie, which most other requests depend on.
+    await client.get(p.join(serverURL, 'api/v1/session'));
   }
 }
 
