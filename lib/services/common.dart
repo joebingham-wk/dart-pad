@@ -4,8 +4,8 @@
 
 library dart_pad.common;
 
-final String serverURL = 'http://3.83.253.252:8080/';
-//final String serverURL = 'http://127.0.0.1:8082/';
+//final String serverURL = 'http://3.83.253.252:8080/';
+final String serverURL = 'http://127.0.0.1:8082/';
 //final String serverURL = 'https://dart2-test-dot-dart-services.appspot.com/';
 
 final Duration serviceCallTimeout = Duration(seconds: 10);
