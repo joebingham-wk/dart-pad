@@ -1,3 +1,5 @@
 Dockerfile
 .git
 .dart_tool
+.idea
+.dockerignore
