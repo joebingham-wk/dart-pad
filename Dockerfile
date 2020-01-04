@@ -18,8 +18,8 @@ RUN pub get
 ADD . /app
 RUN pub get --offline
 
-#RUN pub run grinder build
-RUN pub run build_runner build -r -o web:build
+RUN pub run build_runner build -r web
+RUN pub run grinder build
 
 RUN chmod -R a+r ~/.pub-cache
 EXPOSE 8000
@@ -28,4 +28,4 @@ EXPOSE 8000
 # the Dart app using custom script enabling debug modes.
 CMD []
 ARG DARTPAD_BACKEND
-ENTRYPOINT pub run grinder serve-custom-backend
+ENTRYPOINT pub run grinder serve-custom-backend-no-build

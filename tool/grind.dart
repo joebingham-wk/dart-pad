@@ -89,8 +89,11 @@ const String backendVariable = 'DARTPAD_BACKEND';
 
 @Task(
     'Serve locally on port 8002 and use backend from $backendVariable environment variable')
-@Depends(build)
-serveCustomBackend() async {
+@Depends(build, serveCustomBackendNoBuild)
+serveCustomBackend() {}
+
+@Task()
+serveCustomBackendNoBuild() async {
   if (!Platform.environment.containsKey(backendVariable)) {
     print('$backendVariable can be specified (as [http|https]://host[:port]) '
         'to indicate the dart-services server to connect to');
